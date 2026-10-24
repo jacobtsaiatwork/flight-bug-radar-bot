@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>✈️ 機票清艙與 Bug 價訂閱雷達｜LIFF 控制台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans pb-16">
+  <!-- Header -->
+  <header class="bg-gradient-to-r from-red-800 via-rose-700 to-orange-700 p-6 shadow-xl border-b border-red-500/30">
+    <div class="max-w-lg mx-auto">
+      <div class="flex items-center justify-between">
+        <span class="px-2.5 py-1 text-xs font-bold bg-amber-400 text-slate-950 rounded-full">🔥 豬隊友 / 布萊N / Skyscanner 致敬版</span>
+        <span id="user-badge" class="text-xs text-rose-200 font-mono">LIFF Ready</span>
+      </div>
+      <h1 class="text-2xl font-black mt-3 tracking-tight">✈️ 機票清艙與 Bug 價雷達</h1>
+      <p class="text-xs text-rose-100/90 mt-1">設定目標航線預算天花板，出現破盤神價或 14 天內清艙票立即 LINE 秒級推播，還可一鍵用航班時間排行程！</p>
+    </div>
+  </header>
+
+  <main class="max-w-lg mx-auto px-4 mt-6 space-y-6">
+    <!-- 1. 全域警報開關 -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+      <h2 class="text-base font-bold text-amber-400 flex items-center gap-2">⚡ 核心神價攔截開關</h2>
+
+      <label class="flex items-center justify-between cursor-pointer bg-slate-800/70 p-3.5 rounded-xl border border-slate-700/60">
+        <div>
+          <div class="font-bold text-sm text-white">🔥 全網史詩級 Bug 價秒殺推播</div>
+          <div class="text-xs text-slate-400">航司標錯價、外站漏油稅（低於均價 5 折）第一時間警報</div>
+        </div>
+        <input id="bug-alert" type="checkbox" checked class="w-5 h-5 accent-rose-600 rounded" />
+      </label>
+
+      <label class="flex items-center justify-between cursor-pointer bg-slate-800/70 p-3.5 rounded-xl border border-slate-700/60">
+        <div>
+          <div class="font-bold text-sm text-white">⚡ 旅行社 14 天內晚鳥清艙計畫票</div>
+          <div class="text-xs text-slate-400">雄獅/可樂/五福/易遊網退團釋出含 20kg 托運出清票</div>
+        </div>
+        <input id="clearance-alert" type="checkbox" checked class="w-5 h-5 accent-orange-500 rounded" />
+      </label>
+
+      <div class="grid grid-cols-2 gap-3 pt-1">
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">💺 艙等偏好</label>
+          <select id="cabin-pref" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+            <option value="economy">經濟艙 / 超值促銷</option>
+            <option value="business">商務艙 / 豪經艙 Bug 價</option>
+            <option value="any">不限艙等皆通知</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs text-slate-400 mb-1">🧳 廉航比價基準</label>
+          <select id="baggage-mode" class="w-full bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-sm text-white">
+            <option value="true">必含 20kg 托運真實總價</option>
+            <option value="false">僅看手提背包客裸票價</option>
+          </select>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. 熱門航線與目標預算上限 -->
+    <section class="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4">
+      <div class="flex items-center justify-between">
+        <h2 class="text-base font-bold text-sky-400">🎯 監控航線與來回含稅目標價 (NT$)</h2>
+        <span class="text-xs text-slate-400">勾選並設定預算上限</span>
+      </div>
+
+      <div id="routes-container" class="space-y-3">
+        <!-- 由 JS 動態渲染航線卡片 -->
+      </div>
+    </section>
+
+    <!-- 儲存按鈕 -->
+    <button id="save-btn" onclick="savePreferences()" class="w-full py-4 bg-gradient-to-r from-rose-600 to-orange-600 hover:from-rose-500 hover:to-orange-500 text-white font-black rounded-2xl shadow-lg shadow-rose-600/30 transition-all text-base">
+      💾 儲存降價雷達設定並立即掃描神價
+    </button>
+
+    <div id="status-toast" class="hidden text-center p-4 rounded-xl bg-emerald-950/90 border border-emerald-500/40 text-emerald-200 text-sm font-bold"></div>
+  </main>
+
+  <script>
+    const DEFAULT_ROUTES = [
+      { code: "NRT", city: "東京 (成田/羽田)", avg: 14800, defaultTarget: 7500, checked: true },
+      { code: "KIX", city: "大阪 (關西機場)", avg: 14500, defaultTarget: 8500, checked: true },
+      { code: "OKA", city: "沖繩 (那霸機場)", avg: 7800, defaultTarget: 4200, checked: true },
+      { code: "ICN", city: "首爾 (仁川/金浦)", avg: 10800, defaultTarget: 6200, checked: false },
+      { code: "BKK", city: "曼谷 (蘇凡納布/廊曼)", avg: 10500, defaultTarget: 5800, checked: false },
+      { code: "EUR", city: "歐洲長程線 (巴黎/倫敦/米蘭)", avg: 36800, defaultTarget: 18000, checked: true }
+    ];
+
+    let currentUserId = "guest_radar_user";
+
+    function renderRoutes() {
+      const container = document.getElementById("routes-container");
+      container.innerHTML = DEFAULT_ROUTES.map(r => `
+        <div class="p-3.5 rounded-xl bg-slate-800/80 border border-slate-700/70 flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <label class="flex items-center gap-2.5 cursor-pointer">
+              <input type="checkbox" data-code="${r.code}" class="route-check w-4 h-4 accent-sky-500 rounded" ${r.checked ? "checked" : ""} />
+              <span class="font-bold text-sm text-white">✈️ ${r.city}</span>
+            </label>
+            <span class="text-xs text-slate-400">歷史均價 $${r.avg.toLocaleString()}</span>
+          </div>
+          <div class="flex items-center gap-3 pl-6">
+            <span class="text-xs text-amber-300 whitespace-nowrap">低於此價通知：NT$</span>
+            <input type="number" id="price-${r.code}" value="${r.defaultTarget}" step="500"
+              class="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-sm font-bold text-emerald-400 focus:outline-none focus:border-sky-500" />
+          </div>
+        </div>
+      `).join("");
+    }
+
+    async function savePreferences() {
+      const checks = document.querySelectorAll(".route-check");
+      const routes = {};
+      checks.forEach(ch => {
+        if (ch.checked) {
+          const code = ch.getAttribute("data-code");
+          const val = parseInt(document.getElementById(`price-${code}`).value || "8000", 10);
+          routes[code] = val;
+        }
+      });
+
+      const payload = {
+        user_id: currentUserId,
+        routes: routes,
+        bug_fare_alert: document.getElementById("bug-alert").checked,
+        clearance_alert: document.getElementById("clearance-alert").checked,
+        cabin_pref: document.getElementById("cabin-pref").value,
+        include_baggage_only: document.getElementById("baggage-mode").value === "true"
+      };
+
+      const res = await fetch("/api/subscriptions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      const toast = document.getElementById("status-toast");
+      toast.classList.remove("hidden");
+      toast.textContent = `✅ 儲存成功！已為您監控 ${Object.keys(routes).length} 條航線，目前共有 ${data.matched_deals_count || 0} 張神價符合您的預算！`;
+    }
+
+    renderRoutes();
+  </script>
+</body>
+</html>
