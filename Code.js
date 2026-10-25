@@ -83,6 +83,42 @@ const FLIGHT_DEALS = [
     notes: "雄獅旅遊散客退團釋出清艙機票，剩餘 4 席說走就走！"
   },
   {
+    id: "deal_cola_nrt_clearance",
+    airline: "酷航 (可樂旅遊清艙計畫票)",
+    origin: "TPE 台北桃園",
+    destination: "NRT 東京成田",
+    price: 6500,
+    normalPrice: 14000,
+    isBugFare: false,
+    category: "CLEARANCE",
+    thermometer: { label: "⚡ 破盤晚鳥清艙", discount: 4.6, saved: 7500, heatPercent: 94 },
+    hasBaggage: true,
+    baggageInfo: "含 20kg 托運行李 + 10kg 手提",
+    travelPeriod: "未來 10 天內出發 (11/02~11/07)",
+    flightTimes: { outboundArrival: "10:45 (早班機)", inboundDeparture: "16:20", days: 6 },
+    bookingUrl: "https://www.colatour.com.tw/",
+    remainingSeats: 2,
+    notes: "可樂旅遊清艙計畫票，紅葉祭搶先出發！"
+  },
+  {
+    id: "deal_eztravel_oka_clearance",
+    airline: "中華航空 (易遊網神秘晚鳥票)",
+    origin: "TPE 台北桃園",
+    destination: "OKA 沖繩那霸",
+    price: 4999,
+    normalPrice: 11000,
+    isBugFare: false,
+    category: "CLEARANCE",
+    thermometer: { label: "⚡ 破盤晚鳥清艙", discount: 4.5, saved: 6001, heatPercent: 91 },
+    hasBaggage: true,
+    baggageInfo: "華航直飛含 23kg 托運行李",
+    travelPeriod: "未來 5 天內出發 (10/30~11/03)",
+    flightTimes: { outboundArrival: "09:30 (早班機)", inboundDeparture: "13:00", days: 5 },
+    bookingUrl: "https://www.eztravel.com.tw/",
+    remainingSeats: 5,
+    notes: "易遊網華航團體切票晚鳥清艙，含餐含行李！"
+  },
+  {
     id: "deal_peach_oka_promo",
     airline: "樂桃航空 (Peach)",
     origin: "TPE 台北桃園",
@@ -266,7 +302,7 @@ function buildDealsCarousel(deals) {
         type: "box", layout: "vertical", spacing: "sm",
         contents: [
           {
-            type: "box", layout: "horizontal", alignItems: "baseline",
+            type: "box", layout: "horizontal", alignItems: "center",
             contents: [
               { type: "text", text: `NT$ ${deal.price.toLocaleString()}`, size: "xxl", weight: "bold", color: "#D32F2F" },
               { type: "text", text: `(省 $${deal.thermometer.saved.toLocaleString()})`, size: "xs", color: "#777777", margin: "sm" }
