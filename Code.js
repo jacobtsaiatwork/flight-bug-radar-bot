@@ -382,7 +382,78 @@ function saveConfigServer(token, key) {
   return "✅ 設定已成功儲存至 Google 雲端！";
 }
 
+function setupRichMenuServer() {
+  return setupRichMenu();
+}
+
+function setupRichMenu() {
+  const token = getLineToken();
+  if (!token) throw new Error("未設定 LINE_CHANNEL_ACCESS_TOKEN，請先儲存金鑰！");
+
+  // 1. 建立 Rich Menu 定義 (六宮格)
+  const payload = {
+    size: { width: 2500, height: 1686 },
+    selected: true,
+    name: "機票清艙與Bug價雷達六宮格選單",
+    chatBarText: "✈️ 開啟機票清艙與Bug價雷達",
+    areas: [
+      { bounds: { x: 0, y: 0, width: 833, height: 843 }, action: { type: "message", text: "Bug價雷達" } },
+      { bounds: { x: 833, y: 0, width: 834, height: 843 }, action: { type: "message", text: "清艙" } },
+      { bounds: { x: 1667, y: 0, width: 833, height: 843 }, action: { type: "message", text: "東京比價" } },
+      { bounds: { x: 0, y: 843, width: 833, height: 843 }, action: { type: "postback", label: "✨ 一鍵排行程", data: "action=plan_trip&deal_id=deal_cx_nrt_bug", displayText: "✨ 用東京國泰 Bug 價排 5 天行程" } },
+      { bounds: { x: 833, y: 843, width: 834, height: 843 }, action: { type: "message", text: "大阪比價" } },
+      { bounds: { x: 1667, y: 843, width: 833, height: 843 }, action: { type: "message", text: "訂閱 東京 6000" } }
+    ]
+  };
+
+  const createRes = UrlFetchApp.fetch("https://api.line.me/v2/bot/richmenu", {
+    method: "post",
+    headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  });
+
+  const resJson = JSON.parse(createRes.getContentText());
+  if (!resJson.richMenuId) {
+    throw new Error("建立選單失敗：" + createRes.getContentText());
+  }
+  const richMenuId = resJson.richMenuId;
+
+  // 2. 下載 GitHub 上的 2500x1686 圖片並上傳至 LINE
+  const imgUrl = "https://raw.githubusercontent.com/jacobtsaiatwork/flight-bug-radar-bot/main/rich_menu.png";
+  const imgBlob = UrlFetchApp.fetch(imgUrl).getBlob();
+
+  const uploadRes = UrlFetchApp.fetch(`https://api-data.line.me/v2/bot/richmenu/${richMenuId}/content`, {
+    method: "post",
+    headers: { Authorization: "Bearer " + token, "Content-Type": "image/png" },
+    payload: imgBlob.getBytes(),
+    muteHttpExceptions: true
+  });
+
+  if (uploadRes.getResponseCode() !== 200) {
+    throw new Error("上傳圖片失敗：" + uploadRes.getContentText());
+  }
+
+  // 3. 設為預設選單
+  UrlFetchApp.fetch(`https://api.line.me/v2/bot/user/all/richmenu/${richMenuId}`, {
+    method: "post",
+    headers: { Authorization: "Bearer " + token },
+    muteHttpExceptions: true
+  });
+
+  return "✅ LINE 六宮格圖文選單已成功建立並綁定為官方預設選單！";
+}
+
 function doGet(e) {
+  if (e && e.parameter && e.parameter.action === "setupRichMenu") {
+    try {
+      const msg = setupRichMenu();
+      return ContentService.createTextOutput(msg);
+    } catch (err) {
+      return ContentService.createTextOutput("設定失敗: " + err);
+    }
+  }
+
   if (e && e.parameter && e.parameter.action === "saveConfig") {
     if (e.parameter.lineToken) setProperty("LINE_CHANNEL_ACCESS_TOKEN", e.parameter.lineToken);
     if (e.parameter.geminiKey) setProperty("GEMINI_API_KEY", e.parameter.geminiKey);

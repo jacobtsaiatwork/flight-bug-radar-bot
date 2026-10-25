@@ -41,6 +41,14 @@
       <button class="btn btn-danger w-100" onclick="saveConfig()">💾 儲存金鑰至 Google 雲端</button>
       <div id="saveMsg" class="mt-2 text-center text-success fw-bold"></div>
     </div>
+
+    <!-- 官方圖文選單卡片 -->
+    <div class="card p-4 mb-4">
+      <h5 class="fw-bold mb-3">🎨 官方圖文選單 (Rich Menu) 雲端設定</h5>
+      <p class="text-muted small">點擊下方按鈕，Google 伺服器將直接透過 LINE API 為您的官方帳號建立高質感六宮格圖文選單並上傳底圖！</p>
+      <button class="btn btn-primary w-100 fw-bold" onclick="setupRichMenuUI()">🎨 一鍵建立並綁定官方圖文選單</button>
+      <div id="menuMsg" class="mt-2 text-center text-primary fw-bold"></div>
+    </div>
   </div>
 
   <script>
@@ -65,6 +73,22 @@
         }).saveConfigServer(token, key);
       } else {
         document.getElementById('saveMsg').innerText = "✅ 設定已儲存至 Google 雲端！";
+      }
+    }
+
+    function setupRichMenuUI() {
+      document.getElementById('menuMsg').innerText = "⏳ 正在建立並綁定圖文選單中...";
+      if (typeof google !== 'undefined' && google.script && google.script.run) {
+        google.script.run.withSuccessHandler(function(res) {
+          document.getElementById('menuMsg').innerText = res;
+        }).withFailureHandler(function(err) {
+          document.getElementById('menuMsg').innerText = "設定失敗：" + err;
+        }).setupRichMenuServer();
+      } else {
+        const url = window.location.href.split('?')[0] + '?action=setupRichMenu';
+        fetch(url).then(r => r.text()).then(res => {
+          document.getElementById('menuMsg').innerText = res;
+        });
       }
     }
   </script>
