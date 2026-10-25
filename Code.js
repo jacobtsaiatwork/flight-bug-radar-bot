@@ -201,7 +201,90 @@ function handlePostback(data, replyToken) {
     const dealId = params.deal_id;
     const deal = FLIGHT_DEALS.find(d => d.id === dealId) || FLIGHT_DEALS[0];
     generateFlightItinerary(deal, replyToken);
+    return;
   }
+  if (params.action === "check_flight_card") {
+    sendFlightCardReward(replyToken, params.airline, parseFloat(params.price), params.dest);
+    return;
+  }
+}
+
+function sendFlightCardReward(replyToken, airline, price, dest) {
+  const cubeEarn = Math.round(price * 0.03);
+  const taishinEarn = Math.round(price * 0.038);
+  const fubonEarn = Math.round(price * 0.03);
+
+  const flex = {
+    type: "bubble",
+    size: "mega",
+    header: {
+      type: "box", layout: "vertical", backgroundColor: "#1E3A8A", paddingAll: "20px",
+      contents: [
+        { type: "text", text: "💳 機票刷卡最優回饋試算", weight: "bold", color: "#FFFFFF", size: "sm" },
+        { type: "text", text: `票價總額：NT$ ${price.toLocaleString()}`, weight: "bold", size: "xl", color: "#FDE68A", margin: "sm" },
+        { type: "text", text: `${airline} ➔ ${dest}`, size: "xs", color: "#93C5FD" }
+      ]
+    },
+    body: {
+      type: "box", layout: "vertical", spacing: "md", paddingAll: "20px",
+      contents: [
+        {
+          type: "box", layout: "vertical", backgroundColor: "#EFF6FF", paddingAll: "12px", cornerRadius: "8px",
+          contents: [
+            { type: "text", text: "🥇 首選推薦：國泰世華 CUBE 卡", weight: "bold", color: "#1D4ED8", size: "sm" },
+            { type: "text", text: `• 權益方案：【趣旅行】(3.0% 回饋無上限)`, size: "xs", color: "#333333", margin: "xs" },
+            { type: "text", text: `• 預計可賺：+$${cubeEarn.toLocaleString()} 元`, size: "md", color: "#DC2626", weight: "bold", margin: "xs" },
+            { type: "text", text: "💡 提示：請於國泰 App 切換至【趣旅行】方案再刷卡", size: "xxs", color: "#2563EB", margin: "xs" }
+          ]
+        },
+        {
+          type: "box", layout: "horizontal",
+          contents: [
+            { type: "text", text: "🥈 台新 玫瑰/太陽卡 (大筆刷 3.8%)", size: "xs", color: "#444444", flex: 3 },
+            { type: "text", text: `+$${taishinEarn.toLocaleString()} 元`, size: "xs", color: "#DC2626", align: "end", flex: 2, weight: "bold" }
+          ]
+        },
+        {
+          type: "box", layout: "horizontal",
+          contents: [
+            { type: "text", text: "🥉 富邦 J 卡 (旅遊/日韓 3.0%)", size: "xs", color: "#444444", flex: 3 },
+            { type: "text", text: `+$${fubonEarn.toLocaleString()} 元`, size: "xs", color: "#666666", align: "end", flex: 2 }
+          ]
+        }
+      ]
+    },
+    footer: {
+      type: "box", layout: "vertical", spacing: "sm", paddingAll: "15px",
+      contents: [
+        {
+          type: "button", style: "primary", color: "#1E3A8A", height: "sm",
+          action: { type: "message", label: "💬 詢問其他信用卡消費優惠", text: "日本機票 24000" }
+        }
+      ]
+    }
+  };
+
+  replyFlexMessage(replyToken, `機票刷卡最優回饋：賺 $${cubeEarn} 元`, flex);
+}
+
+function buildGoogleCalendarUrl(deal) {
+  const title = `✈️ ${deal.origin.split(" ")[0]} ➔ ${deal.destination} 機票（${deal.airline}）`;
+  const now = new Date();
+  const departDate = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000);
+  const returnDate = new Date(departDate.getTime() + (deal.flightTimes.days || 5) * 24 * 60 * 60 * 1000);
+
+  const fmt = d => Utilities.formatDate(d, "UTC", "yyyyMMdd'T'HHmmss'Z'");
+  const dates = `${fmt(departDate)}/${fmt(returnDate)}`;
+
+  const details =
+    `✈️ 航班航司：${deal.airline}\n` +
+    `💰 機票票價：NT$ ${deal.price.toLocaleString()}\n` +
+    `🧳 行李規定：${deal.baggageInfo}\n` +
+    `🕒 航班時間：${deal.flightTimes.outboundArrival} / 回程：${deal.flightTimes.inboundDeparture}\n` +
+    `🔗 訂票官網：${deal.bookingUrl}\n` +
+    `📝 備註：${deal.notes}`;
+
+  return `https://www.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(title)}&dates=${dates}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(deal.destination)}`;
 }
 
 // ==========================================
@@ -314,14 +397,25 @@ function buildDealsCarousel(deals) {
         ]
       },
       footer: {
-        type: "box", layout: "vertical", spacing: "sm",
+        type: "box", layout: "vertical", spacing: "xs",
         contents: [
           {
             type: "button", style: "primary", color: "#00C300", height: "sm",
-            action: { type: "uri", label: "🚀 前往搶票", uri: deal.bookingUrl }
+            action: { type: "uri", label: "🚀 前往官網搶票", uri: deal.bookingUrl }
           },
           {
             type: "button", style: "secondary", height: "sm",
+            action: { type: "uri", label: "📅 1-Click 加入 Google 日曆", uri: buildGoogleCalendarUrl(deal) }
+          },
+          {
+            type: "button", style: "link", height: "sm",
+            action: {
+              type: "postback", label: "💳 查這張機票刷哪張卡賺最多",
+              data: `action=check_flight_card&airline=${encodeURIComponent(deal.airline)}&price=${deal.price}&dest=${encodeURIComponent(deal.destination)}`
+            }
+          },
+          {
+            type: "button", style: "link", height: "sm",
             action: { type: "postback", label: "✨ 用此航班時間排行程", data: `action=plan_trip&deal_id=${deal.id}` }
           }
         ]
