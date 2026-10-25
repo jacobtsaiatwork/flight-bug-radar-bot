@@ -180,8 +180,7 @@ function generateFlightItinerary(deal, replyToken) {
 
   let planText = "";
   if (geminiKey) {
-    try {
-      const prompt = `您是專業旅遊規劃管家。使用者搶到了一張特惠機票：
+    const prompt = `您是專業旅遊規劃管家。使用者搶到了一張特惠機票：
 • 航司：${deal.airline}
 • 目的地：${dest}
 • 旅遊天數：${days} 天
@@ -191,19 +190,24 @@ function generateFlightItinerary(deal, replyToken) {
 請針對這組班機的時段特性（例如首日抵達後適合去哪裡 Check-in、最後一天幾點需出發往機場），為其量身規劃 ${days} 天的重點行程、機場交通快線與推薦住宿區域。
 請以條列精要方式呈現，語氣熱情專業。`;
 
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
-      const res = UrlFetchApp.fetch(geminiUrl, {
-        method: "post",
-        contentType: "application/json",
-        payload: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
-        muteHttpExceptions: true
-      });
-      const json = JSON.parse(res.getContentText());
-      if (json.candidates && json.candidates[0]) {
-        planText = json.candidates[0].content.parts[0].text;
+    const candidateModels = ["gemini-flash-lite-latest", "gemini-3.8-flash", "gemini-flash-latest"];
+    for (const m of candidateModels) {
+      try {
+        const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${geminiKey}`;
+        const res = UrlFetchApp.fetch(geminiUrl, {
+          method: "post",
+          contentType: "application/json",
+          payload: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] }),
+          muteHttpExceptions: true
+        });
+        const json = JSON.parse(res.getContentText());
+        if (json.candidates && json.candidates[0] && json.candidates[0].content && json.candidates[0].content.parts) {
+          planText = json.candidates[0].content.parts[0].text;
+          if (planText) break;
+        }
+      } catch (e) {
+        console.warn(`Model ${m} itinerary error: ${e}`);
       }
-    } catch (e) {
-      console.warn("Gemini Itinerary Error: " + e);
     }
   }
 
@@ -336,6 +340,12 @@ function sendLineReply(replyToken, messages) {
 // ==========================================
 // 6. 雲端 Web 管理面板 (doGet)
 // ==========================================
+function saveConfigServer(token, key) {
+  if (token) setProperty("LINE_CHANNEL_ACCESS_TOKEN", token);
+  if (key) setProperty("GEMINI_API_KEY", key);
+  return "✅ 設定已成功儲存至 Google 雲端！";
+}
+
 function doGet(e) {
   if (e && e.parameter && e.parameter.action === "saveConfig") {
     if (e.parameter.lineToken) setProperty("LINE_CHANNEL_ACCESS_TOKEN", e.parameter.lineToken);
