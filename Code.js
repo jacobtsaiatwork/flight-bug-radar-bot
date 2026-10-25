@@ -395,7 +395,7 @@ function setupRichMenu() {
     size: { width: 2500, height: 1686 },
     selected: true,
     name: "機票清艙與Bug價雷達六宮格選單",
-    chatBarText: "✈️ 開啟機票清艙與Bug價雷達",
+    chatBarText: "✈️ 開啟機票雷達",
     areas: [
       { bounds: { x: 0, y: 0, width: 833, height: 843 }, action: { type: "message", text: "Bug價雷達" } },
       { bounds: { x: 833, y: 0, width: 834, height: 843 }, action: { type: "message", text: "清艙" } },
